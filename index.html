@@ -196,6 +196,10 @@
     background:var(--app); border-radius:10px; padding:10px; margin:0 0 8px; line-height:1.5;
   }
   .log-card-meta{ font-size:0.72rem; color:var(--ink-faint); }
+  .log-card-photo{ width:64px; height:64px; object-fit:cover; border-radius:8px; margin-top:8px; border:1px solid var(--border); cursor:pointer; }
+  .log-card.with-photo{ display:flex; gap:12px; align-items:flex-start; }
+  .log-card.with-photo .log-card-photo{ margin-top:0; flex-shrink:0; }
+  .log-card.with-photo .log-card-body{ flex:1; min-width:0; }
 
   .sales-entry-card{
     background:var(--surface); border:1px solid var(--border); border-radius:16px;
@@ -278,6 +282,21 @@
     border-radius:20px; padding:8px 14px; font-size:0.78rem; font-weight:600; cursor:pointer;
   }
   .waste-reason-chip.active{ background:var(--tomato-soft); color:var(--tomato); border-color:var(--tomato); }
+  .waste-photo-row{ display:flex; align-items:center; }
+  .waste-photo-btn{
+    background:var(--surface); border:1px solid var(--border-strong); color:var(--ink-dim);
+    border-radius:10px; padding:10px 14px; font-size:0.82rem; font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .waste-photo-btn:active{ transform:scale(0.97); }
+  .waste-photo-preview-wrap{ position:relative; display:inline-flex; }
+  .waste-photo-preview{ width:84px; height:84px; object-fit:cover; border-radius:10px; border:1px solid var(--border); }
+  .waste-photo-remove{
+    position:absolute; top:-7px; right:-7px; width:22px; height:22px; border-radius:50%;
+    background:var(--tomato); color:#fff; border:2px solid var(--app); font-size:0.7rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .waste-photo-note{ font-size:0.7rem; color:var(--ink-faint); }
+  .waste-submit-btn:disabled{ opacity:0.6; cursor:default; }
   .waste-submit-btn{
     width:100%; background:var(--tomato); color:#fff; border:none; border-radius:12px;
     padding:13px; font-size:0.9rem; font-weight:700; cursor:pointer; margin-top:20px; font-family:inherit;
@@ -366,6 +385,18 @@
   .flag-btn-low{ background:var(--amber-soft); color:var(--amber); }
   .flag-btn-out{ background:var(--tomato-soft); color:var(--tomato); }
   .flag-btn-clear{ background:var(--good-soft); color:var(--good); }
+  .status-row{ display:flex; gap:8px; margin-bottom:10px; }
+  .status-row button{
+    flex:1; border:1.5px solid var(--border-strong); border-radius:10px; padding:11px 8px;
+    font-size:0.8rem; font-weight:700; cursor:pointer; font-family:inherit; transition:transform .1s;
+    background:var(--app); color:var(--ink-dim);
+  }
+  .status-row button:active{ transform:scale(0.96); }
+  .status-btn-out.active{ background:var(--tomato); border-color:var(--tomato); color:#fff; }
+  .status-btn-low.active{ background:var(--amber); border-color:var(--amber); color:#fff; }
+  .status-btn-full.active{ background:var(--good); border-color:var(--good); color:#fff; }
+  .status-btn-need.active{ background:var(--tomato); border-color:var(--tomato); color:#fff; }
+  .status-btn-have.active{ background:var(--good); border-color:var(--good); color:#fff; }
   .stock-row{ display:flex; align-items:center; gap:7px; margin-bottom:8px; flex-wrap:wrap; }
   .stock-label{ font-size:0.68rem; color:var(--ink-faint); width:62px; flex-shrink:0; font-weight:600; }
   .reorder-tag{
@@ -392,6 +423,12 @@
   .order-row.order-needed .order-label, .order-row.order-needed .order-value{ color:var(--tomato); }
   .needday-note{ margin-top:6px; font-size:0.68rem; color:var(--ink-faint); display:flex; align-items:center; gap:4px; }
   .needday-note .needday-input{ width:38px; padding:2px 3px; }
+  .item-note-row{ margin-top:8px; }
+  .item-note-input{
+    width:100%; box-sizing:border-box; background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:7px 10px; color:var(--ink); font-size:0.76rem; outline:none; font-family:inherit;
+  }
+  .item-note-input::placeholder{ color:var(--ink-faint); }
   .par-input{
     width:28px; background:transparent; border:none; border-bottom:1px dashed var(--border-strong); color:var(--ink-dim);
     text-align:center; font-size:0.68rem; outline:none;
@@ -489,6 +526,8 @@
   .filter-chip[data-f="out"].active{ background:var(--tomato); border-color:var(--tomato); }
   .filter-chip[data-f="low"].active{ background:var(--amber); border-color:var(--amber); }
   .filter-chip[data-f="full"].active{ background:var(--good); border-color:var(--good); }
+  .filter-chip[data-f="need"].active{ background:var(--tomato); border-color:var(--tomato); }
+  .filter-chip[data-f="have"].active{ background:var(--good); border-color:var(--good); }
 
   .status-line{ text-align:center; font-size:0.68rem; color:var(--ink-faint); height:14px; margin:0 0 10px; }
   footer{
@@ -548,6 +587,16 @@
       <div class="waste-reasons" id="wasteReasons"></div>
       <div class="waste-field-label" id="wasteNoteLabel">Note (optional)</div>
       <input class="waste-note-input" id="wasteNoteInput" placeholder="e.g. left in truck overnight">
+      <div class="waste-field-label" id="wastePhotoLabel">Photo (optional)</div>
+      <input type="file" accept="image/*" capture="environment" id="wastePhotoInput" style="display:none">
+      <div class="waste-photo-row">
+        <button type="button" class="waste-photo-btn" id="wastePhotoBtn">📷 <span id="wastePhotoBtnText">Add photo</span></button>
+        <div class="waste-photo-preview-wrap" id="wastePhotoPreviewWrap" style="display:none;">
+          <img class="waste-photo-preview" id="wastePhotoPreview" src="" alt="">
+          <button type="button" class="waste-photo-remove" id="wastePhotoRemoveBtn">✕</button>
+        </div>
+      </div>
+      <div class="waste-photo-note" id="wastePhotoPrivacyNote" style="display:none;">Only this photo is shared — nothing else from your phone is ever accessed.</div>
       <button class="waste-submit-btn" id="wasteSubmitBtn">Log Waste</button>
     </div>
   </div>
@@ -590,22 +639,29 @@ const I18N = {
     backToOverview:"‹ Back to Overview", lock:"‹ Lock",
     titleOut:"Out of Stock", titleNeeded:"Items Needed", titleInStock:"In Stock", titleAll:"All Items",
     noMatchSearch:"No items match your search.", nothingHere:"Nothing here right now.",
-    addBtn:"+ Add", addItemName:"Item name", addUnit:"unit", addNeedDay:"need/day", add:"Add",
-    inStock:"In stock", backStock:"Back stock", needDay:"Need / day", orderTomorrow:"Order for tomorrow",
+    addBtn:"+ Add", addItemName:"Item name", addUnit:"unit", addNeedDay:"need", add:"Add",
+    inStock:"In stock", backStock:"Back stock", needDay:"Need", orderTomorrow:"Order for tomorrow",
+    notePlaceholderItem:"Add a note for staff (e.g. extra for Sat market)", fieldNote:"note",
+    needIt:"Need it", haveIt:"Have it",
     notYetUpdated:"not yet updated", remove:"Remove", history:"History", fullHistory:"Full history", wasteBtn:"🗑 Waste",
     removeConfirm: (n) => `Remove "${n}"?`,
     historyTitle: (n) => `${n} — History`, noChangesYet:"No changes logged yet.", noReadingsYet:"No readings logged yet.",
     markedInspected:"marked inspected", changedFrom:(label,from,to)=>`changed ${label} from ${from} to ${to}`,
     loggedWasted:(qty,unit,reason)=>`logged ${qty} ${unit} wasted — ${reason}`, logged:(v,u)=>`logged ${v}${u}`,
-    fieldInStock:"In stock", fieldBackStock:"Back stock", fieldNeedDay:"Need/day", fieldInspection:"Inspection", fieldFlag:"status flag",
+    fieldInStock:"In stock", fieldBackStock:"Back stock", fieldNeedDay:"Need", fieldInspection:"Inspection", fieldFlag:"status flag",
     lockOrderTitle:"Order Log", lockOrderSub:"Enter code to view past orders",
     lockSalesTitle:"P&L / Sales Log", lockSalesSub:"Enter code to view daily cash & card totals",
     unlock:"Unlock", wrongCode:"Wrong code — try again",
     noOrdersYet:"No orders copied yet.", copyAgain:"Copy again", copied:"✓ Copied",
     logWasteTitle:(n)=>`Log Waste — ${n}`, quantityWasted:"Quantity wasted", reason:"Reason", noteOptional:"Note (optional)",
     notePlaceholder:"e.g. left in truck overnight", logWasteBtn:"Log Waste",
+    photoOptional:"Photo (optional)", addPhoto:"Add photo", uploadingPhoto:"Uploading photo…",
+    photoNeedsSync:"Connect sync in ⚙ Settings to attach photos.",
+    photoPrivacyNote:"Only this photo is shared — nothing else from your phone is ever accessed.",
+    photoUploadFailedConfirm:"The photo couldn't upload (check your sync connection in ⚙ Settings). Log this waste entry without the photo?",
     wastedThisWeek:"Wasted this week", topReason:"Top reason", allWasteEntries:"All waste entries",
     noWasteYet:'No waste logged yet — tap "🗑 Waste" on any item to log spoilage or a mistake.',
+    photosOnly:"Photos only", noPhotosYet:"No waste entries with photos yet.",
     loggedBy:"logged by",
     reasonExpired:"Expired", reasonSpoiled:"Spoiled", reasonDropped:"Dropped/Spilled", reasonPrep:"Prep mistake", reasonOther:"Other",
     today:"Today", cash:"Cash", card:"Card", total:"Total", updateToday:"Update today", saveToday:"Save today",
@@ -641,22 +697,29 @@ const I18N = {
     backToOverview:"‹ Volver al resumen", lock:"‹ Bloquear",
     titleOut:"Agotado", titleNeeded:"Artículos necesarios", titleInStock:"En camión", titleAll:"Todos los artículos",
     noMatchSearch:"Ningún artículo coincide con tu búsqueda.", nothingHere:"Nada por aquí en este momento.",
-    addBtn:"+ Añadir", addItemName:"Nombre del artículo", addUnit:"unidad", addNeedDay:"necesidad/día", add:"Añadir",
-    inStock:"En camión", backStock:"Reserva", needDay:"Necesidad / día", orderTomorrow:"Pedido para mañana",
+    addBtn:"+ Añadir", addItemName:"Nombre del artículo", addUnit:"unidad", addNeedDay:"necesidad", add:"Añadir",
+    inStock:"En camión", backStock:"Reserva", needDay:"Necesidad", orderTomorrow:"Pedido para mañana",
+    notePlaceholderItem:"Añade una nota para el personal (ej. extra para el mercado del sábado)", fieldNote:"nota",
+    needIt:"Lo necesito", haveIt:"Lo tengo",
     notYetUpdated:"aún sin actualizar", remove:"Eliminar", history:"Historial", fullHistory:"Historial completo", wasteBtn:"🗑 Desperdicio",
     removeConfirm: (n) => `¿Eliminar "${n}"?`,
     historyTitle: (n) => `${n} — Historial`, noChangesYet:"Todavía no hay cambios registrados.", noReadingsYet:"Todavía no hay lecturas registradas.",
     markedInspected:"marcó como inspeccionado", changedFrom:(label,from,to)=>`cambió ${label} de ${from} a ${to}`,
     loggedWasted:(qty,unit,reason)=>`registró ${qty} ${unit} desperdiciados — ${reason}`, logged:(v,u)=>`registró ${v}${u}`,
-    fieldInStock:"En camión", fieldBackStock:"Reserva", fieldNeedDay:"Necesidad/día", fieldInspection:"Inspección", fieldFlag:"alerta de estado",
+    fieldInStock:"En camión", fieldBackStock:"Reserva", fieldNeedDay:"Necesidad", fieldInspection:"Inspección", fieldFlag:"alerta de estado",
     lockOrderTitle:"Registro de Pedidos", lockOrderSub:"Ingresa el código para ver pedidos anteriores",
     lockSalesTitle:"Ventas / Efectivo y Tarjeta", lockSalesSub:"Ingresa el código para ver los totales diarios de efectivo y tarjeta",
     unlock:"Desbloquear", wrongCode:"Código incorrecto — intenta de nuevo",
     noOrdersYet:"Todavía no se ha copiado ningún pedido.", copyAgain:"Copiar de nuevo", copied:"✓ Copiado",
     logWasteTitle:(n)=>`Registrar desperdicio — ${n}`, quantityWasted:"Cantidad desperdiciada", reason:"Motivo", noteOptional:"Nota (opcional)",
     notePlaceholder:"ej. se quedó en el camión toda la noche", logWasteBtn:"Registrar desperdicio",
+    photoOptional:"Foto (opcional)", addPhoto:"Añadir foto", uploadingPhoto:"Subiendo foto…",
+    photoNeedsSync:"Conecta la sincronización en ⚙ Ajustes para adjuntar fotos.",
+    photoPrivacyNote:"Solo se comparte esta foto — nunca se accede a nada más de tu teléfono.",
+    photoUploadFailedConfirm:"La foto no se pudo subir (revisa tu conexión de sincronización en ⚙ Ajustes). ¿Registrar este desperdicio sin la foto?",
     wastedThisWeek:"Desperdiciado esta semana", topReason:"Motivo principal", allWasteEntries:"Todos los registros de desperdicio",
     noWasteYet:'Todavía no hay desperdicio registrado — toca "🗑 Desperdicio" en cualquier artículo para registrar una pérdida o un error.',
+    photosOnly:"Solo con fotos", noPhotosYet:"Todavía no hay desperdicios con fotos.",
     loggedBy:"registrado por",
     reasonExpired:"Caducado", reasonSpoiled:"Echado a perder", reasonDropped:"Caído/Derramado", reasonPrep:"Error de preparación", reasonOther:"Otro",
     today:"Hoy", cash:"Efectivo", card:"Tarjeta", total:"Total", updateToday:"Actualizar hoy", saveToday:"Guardar hoy",
@@ -886,6 +949,7 @@ const LocalStore = {
 };
 
 function uid(){ return Math.random().toString(36).slice(2,10); }
+function escAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function lowThreshold(par){ return Math.max(1, Math.ceil(par*0.3)); }
 
 let state = { items: [], collapsed: {}, orderLog: [], wasteLog: [], salesLog: [] };
@@ -897,7 +961,7 @@ function seedItems(){
   return DEFAULT_ITEMS.map(d => {
     if(d.type === 'check') return { id: uid(), type:'check', name:d.name, cat:d.cat, nextDue:null, updatedBy:"", updatedAt:null };
     if(d.type === 'log') return { id: uid(), type:'log', name:d.name, cat:d.cat, unit:d.unit, min:d.min, max:d.max, logs:[], updatedBy:"", updatedAt:null };
-    return { id: uid(), type:'stock', name:d.name, cat:d.cat, unit:d.unit, working:0, back:0, par:d.par, updatedBy:"", updatedAt:null };
+    return { id: uid(), type:'stock', name:d.name, cat:d.cat, unit:d.unit, status:'need', par:d.par, note:'', updatedBy:"", updatedAt:null };
   });
 }
 
@@ -915,9 +979,20 @@ async function loadState(){
       state.items.forEach(i => {
         if(!i.type) i.type = 'stock';
         if(i.type==='stock'){
-          if(typeof i.working !== 'number') i.working = typeof i.qty === 'number' ? i.qty : 0;
-          if(typeof i.back !== 'number') i.back = 0;
-          if(typeof i.par !== 'number') i.par = Math.max(i.working, 3, 1);
+          // Migrate from the old exact-quantity (working/back) model to a
+          // simple manual status, derived once from whatever numbers existed.
+          // Also folds the old 3-state (out/low/full) version down to 2 (need/have).
+          if(typeof i.status !== 'string'){
+            const total = (i.working||0) + (i.back||0);
+            const byPar = Math.max(0, (i.par||0) - total);
+            i.status = (i.flag === 'out' || i.flag === 'low' || total <= 0 || byPar > 0) ? 'need' : 'have';
+          } else if(i.status === 'out' || i.status === 'low'){
+            i.status = 'need';
+          } else if(i.status === 'full'){
+            i.status = 'have';
+          }
+          if(typeof i.par !== 'number') i.par = Math.max((i.working||0), 3, 1);
+          if(typeof i.note !== 'string') i.note = '';
           if(i.cat === 'Proteins' && (i.unit === 'lbs' || i.unit === 'units')) i.unit = 'cases';
         }
         if(i.type==='log' && !i.logs) i.logs = [];
@@ -928,7 +1003,7 @@ async function loadState(){
         oldWater.unit = 'jugs';
         const bottled = {
           id: uid(), type:'stock', name:'Bottled Water', cat:'Beverages', unit:'cases',
-          working:0, back:0, par:2, history:[],
+          status:'need', par:2, history:[],
           updatedBy: oldWater.updatedBy || "", updatedAt: null
         };
         state.items.splice(state.items.indexOf(oldWater)+1, 0, bottled);
@@ -967,39 +1042,29 @@ function logChange(item, field, from, to){
 
 function statusOf(item){
   if(item.type !== 'stock') return null;
-  if(item.flag === 'out') return 'out';
-  if(item.flag === 'low') return 'low';
-  const total = (item.working||0) + (item.back||0);
-  const order = orderNeeded(item);
-  if(total <= 0) return 'out';
-  if(order > 0) return 'low';
-  return 'full';
+  return item.status || 'have';
 }
 function orderNeeded(item){
-  const total = (item.working||0) + (item.back||0);
-  const byPar = Math.max(0, (item.par||0) - total);
-  if(byPar > 0) return byPar;
-  if(item.flag === 'out') return item.par||0;
-  if(item.flag === 'low') return Math.max(1, Math.ceil((item.par||0) * 0.5));
-  return 0;
+  return item.status === 'need' ? (item.par||0) : 0;
 }
-function setFlag(id, flag){
+function setItemStatus(id, status){
   const i = state.items.find(x=>x.id===id); if(!i) return;
-  const from = i.flag || 'full';
-  i.flag = flag || null;
-  logChange(i, 'flag', from, flag || 'full');
+  const from = i.status || 'have';
+  if(from === status) return;
+  i.status = status;
+  logChange(i, 'status', from, status);
   touch(i); queueSave(); renderAll();
 }
 function resetAllFlags(){
-  const flaggedCount = state.items.filter(i=>i.type==='stock' && i.flag).length;
-  if(!flaggedCount){ return; }
+  const count = state.items.filter(i=>i.type==='stock' && i.status !== 'have').length;
+  if(!count){ return; }
   if(!confirm(t('resetAllConfirm'))) return;
   const who = getWho() || 'someone';
   const now = new Date().toISOString();
   state.items.forEach(i=>{
-    if(i.type==='stock' && i.flag){
-      logChange(i, 'flag', i.flag, 'full');
-      i.flag = null;
+    if(i.type==='stock' && i.status !== 'have'){
+      logChange(i, 'status', i.status, 'have');
+      i.status = 'have';
       i.updatedBy = who; i.updatedAt = now;
     }
   });
@@ -1018,11 +1083,8 @@ function logStatus(item){
   return (last.value < item.min || last.value > item.max) ? 'overdue' : 'ok';
 }
 
-function changeWorking(id, delta){ const i=state.items.find(x=>x.id===id); if(!i)return; const from=i.working||0; i.working=Math.max(0,from+delta); logChange(i,'working',from,i.working); touch(i); queueSave(); renderAll(); }
-function setWorking(id, val){ const i=state.items.find(x=>x.id===id); if(!i)return; const from=i.working||0; const n=parseFloat(val); i.working=isNaN(n)?0:Math.max(0,n); logChange(i,'working',from,i.working); touch(i); queueSave(); renderAll(); }
-function changeBack(id, delta){ const i=state.items.find(x=>x.id===id); if(!i)return; const from=i.back||0; i.back=Math.max(0,from+delta); logChange(i,'back',from,i.back); touch(i); queueSave(); renderAll(); }
-function setBack(id, val){ const i=state.items.find(x=>x.id===id); if(!i)return; const from=i.back||0; const n=parseFloat(val); i.back=isNaN(n)?0:Math.max(0,n); logChange(i,'back',from,i.back); touch(i); queueSave(); renderAll(); }
 function setPar(id, val){ const i=state.items.find(x=>x.id===id); if(!i)return; const from=i.par||0; const n=parseFloat(val); i.par=(isNaN(n)||n<0)?0:n; logChange(i,'par',from,i.par); touch(i); queueSave(); renderAll(); }
+function setNote(id, val){ const i=state.items.find(x=>x.id===id); if(!i)return; const from=i.note||''; const to=val.trim(); if(from===to) return; i.note=to; logChange(i,'note',from||'(none)',to||'(none)'); touch(i); queueSave(); renderAll(); }
 function setNextDue(id, val){ const i=state.items.find(x=>x.id===id); if(!i)return; i.nextDue=val||null; touch(i); queueSave(); renderAll(); }
 function markInspectedToday(id){ const i=state.items.find(x=>x.id===id); if(!i)return; const from=i.nextDue; const d=new Date(); d.setFullYear(d.getFullYear()+1); i.nextDue=d.toISOString().slice(0,10); logChange(i,'inspection','inspected today','next due '+i.nextDue); touch(i); queueSave(); renderAll(); }
 function addLog(id, val){ const i=state.items.find(x=>x.id===id); if(!i)return; const n=parseFloat(val); if(isNaN(n))return; i.logs.push({value:n, at:new Date().toISOString(), by:getWho()||"someone"}); if(i.logs.length>50) i.logs=i.logs.slice(-50); touch(i); queueSave(); renderAll(); }
@@ -1031,7 +1093,7 @@ function addItem(cat, name, unit, par){
   name = name.trim(); if(!name) return;
   const defaultUnit = cat === 'Proteins' ? 'cases' : 'units';
   state.items.push({ id: uid(), type:'stock', name, cat, unit: unit.trim()||defaultUnit,
-    working:0, back:0, par: parseFloat(par) > 0 ? parseFloat(par) : 5,
+    status:'need', par: parseFloat(par) > 0 ? parseFloat(par) : 5, note:'',
     updatedBy: getWho()||"someone", updatedAt: new Date().toISOString() });
   queueSave(); renderAll();
 }
@@ -1050,60 +1112,39 @@ function timeAgo(iso){
 function renderStockItem(item){
   const st = statusOf(item);
   const order = orderNeeded(item);
-  const labelMap = {out:t('out'), low:t('needToOrder'), full:t('stocked')};
+  const labelMap = {need:t('needToOrder'), have:t('stocked')};
+  const tagCls = st==='need' ? 'out' : 'full'; // reuse existing tomato/good color classes
   const row = document.createElement('div');
   row.className = 'item';
   row.id = 'item-' + item.id;
   row.innerHTML = `
     <div class="item-top">
       <div class="item-name">${itemLabel(item.name)}</div>
-      <div class="status-tag ${st}">${labelMap[st]}</div>
+      <div class="status-tag ${tagCls}">${labelMap[st]}</div>
     </div>
-    <div class="flag-row">
-      ${item.flag
-        ? `<button class="flag-btn-clear" data-a="flagclear">${t('backInStock')}</button>`
-        : `<button class="flag-btn-low" data-a="flaglow">${t('markLow')}</button><button class="flag-btn-out" data-a="flagout">${t('markOut')}</button>`}
-    </div>
-    <div class="stock-row">
-      <div class="stock-label">${t('inStock')}</div>
-      <button class="step-btn" data-a="wminus">−</button>
-      <input class="qty-input" data-a="wval" type="number" value="${item.working}" inputmode="decimal">
-      <button class="step-btn" data-a="wplus">+</button>
-      <div class="unit-label">${unitLabel(item.unit)}</div>
-    </div>
-    <div class="stock-row">
-      <div class="stock-label">${t('backStock')}</div>
-      <button class="step-btn" data-a="bminus">−</button>
-      <input class="qty-input" data-a="bval" type="number" value="${item.back}" inputmode="decimal">
-      <button class="step-btn" data-a="bplus">+</button>
-      <div class="unit-label">${unitLabel(item.unit)}</div>
+    <div class="status-row">
+      <button class="status-btn-need${st==='need'?' active':''}" data-a="sneed">${t('needIt')}</button>
+      <button class="status-btn-have${st==='have'?' active':''}" data-a="shave">${t('haveIt')}</button>
     </div>
     <div class="order-row ${order > 0 ? 'order-needed' : ''}">
       <div class="order-label">${t('orderTomorrow')}</div>
       <div class="order-value">${order} ${unitLabel(item.unit)}</div>
     </div>
     <div class="needday-note">${t('needDay').toLowerCase()} <input class="needday-input" data-a="par" type="number" value="${item.par}"> ${unitLabel(item.unit)}</div>
+    <div class="item-note-row">
+      <input class="item-note-input" data-a="note" type="text" maxlength="140" value="${escAttr(item.note||'')}" placeholder="${t('notePlaceholderItem')}">
+    </div>
     <div class="item-bottom">
       <div class="item-meta">${item.updatedAt ? item.updatedBy + ' · ' + timeAgo(item.updatedAt) : t('notYetUpdated')}</div>
       <div class="item-actions"><button class="waste-btn" data-a="waste">${t('wasteBtn')}</button><button class="hist-btn" data-a="hist">${t('history')}</button><button class="del-btn" data-a="del">${t('remove')}</button></div>
     </div>
   `;
-  row.querySelector('[data-a="wminus"]').onclick = () => changeWorking(item.id, -1);
-  row.querySelector('[data-a="wplus"]').onclick = () => changeWorking(item.id, 1);
-  row.querySelector('[data-a="wval"]').onchange = (e) => setWorking(item.id, e.target.value);
-  row.querySelector('[data-a="wval"]').oninput = debounce((e) => saveWithFocusKept(() => setWorking(item.id, e.target.value)), 700);
-  row.querySelector('[data-a="bminus"]').onclick = () => changeBack(item.id, -1);
-  row.querySelector('[data-a="bplus"]').onclick = () => changeBack(item.id, 1);
-  row.querySelector('[data-a="bval"]').onchange = (e) => setBack(item.id, e.target.value);
-  row.querySelector('[data-a="bval"]').oninput = debounce((e) => saveWithFocusKept(() => setBack(item.id, e.target.value)), 700);
+  row.querySelector('[data-a="sneed"]').onclick = () => setItemStatus(item.id, 'need');
+  row.querySelector('[data-a="shave"]').onclick = () => setItemStatus(item.id, 'have');
   row.querySelector('[data-a="par"]').onchange = (e) => setPar(item.id, e.target.value);
   row.querySelector('[data-a="par"]').oninput = debounce((e) => saveWithFocusKept(() => setPar(item.id, e.target.value)), 700);
-  const flagLowBtn = row.querySelector('[data-a="flaglow"]');
-  const flagOutBtn = row.querySelector('[data-a="flagout"]');
-  const flagClearBtn = row.querySelector('[data-a="flagclear"]');
-  if(flagLowBtn) flagLowBtn.onclick = () => setFlag(item.id, 'low');
-  if(flagOutBtn) flagOutBtn.onclick = () => setFlag(item.id, 'out');
-  if(flagClearBtn) flagClearBtn.onclick = () => setFlag(item.id, null);
+  row.querySelector('[data-a="note"]').onchange = (e) => setNote(item.id, e.target.value);
+  row.querySelector('[data-a="note"]').oninput = debounce((e) => saveWithFocusKept(() => setNote(item.id, e.target.value)), 700);
   row.querySelector('[data-a="waste"]').onclick = () => openWasteModal(item);
   row.querySelector('[data-a="hist"]').onclick = () => showHistory(item);
   row.querySelector('[data-a="del"]').onclick = () => { if(confirm(t('removeConfirm', itemLabel(item.name)))) deleteItem(item.id); };
@@ -1174,7 +1215,7 @@ function renderLogItem(item){
 
 function renderTabbar(){
   const stockItems = state.items.filter(i=>i.type==='stock');
-  const attentionCount = stockItems.filter(i => statusOf(i)==='out' || statusOf(i)==='low').length
+  const attentionCount = stockItems.filter(i => statusOf(i)==='need').length
     + state.items.filter(i=>i.type==='check' && checkStatus(i)==='overdue').length
     + state.items.filter(i=>i.type==='log' && logStatus(i)==='overdue').length;
 
@@ -1191,7 +1232,7 @@ function renderTabbar(){
 
 function buildOrderMessage(){
   const stockItems = state.items.filter(i=>i.type==='stock');
-  const needed = stockItems.filter(i => statusOf(i)==='out' || statusOf(i)==='low');
+  const needed = stockItems.filter(i => statusOf(i)==='need');
   const now = new Date();
   const dayLine = now.toLocaleDateString(locale(),{weekday:'long'});
   const dateLine = now.toLocaleDateString(locale(),{month:'long', day:'numeric', year:'numeric'});
@@ -1200,7 +1241,7 @@ function buildOrderMessage(){
     const items = needed.filter(i=>i.cat===cat);
     if(!items.length) return;
     msg += `\n${catLabel(cat).toUpperCase()}\n`;
-    items.forEach(i=>{ msg += `- ${itemLabel(i.name)} — ${orderNeeded(i)} ${unitLabel(i.unit)}\n`; });
+    items.forEach(i=>{ msg += `- ${itemLabel(i.name)} — ${orderNeeded(i)} ${unitLabel(i.unit)}${i.note ? ' ('+i.note+')' : ''}\n`; });
   });
   if(!needed.length) msg += `\n${t('orderNothingNeeded')}\n`;
   msg += `\n${t('orderThankYou')}`;
@@ -1294,22 +1335,20 @@ function renderOrderLog(root){
 
 function renderOverview(root){
   const stockItems = state.items.filter(i=>i.type==='stock');
-  const out = stockItems.filter(i=>statusOf(i)==='out');
-  const low = stockItems.filter(i=>statusOf(i)==='low');
-  const full = stockItems.filter(i=>statusOf(i)==='full');
+  const need = stockItems.filter(i=>statusOf(i)==='need');
+  const have = stockItems.filter(i=>statusOf(i)==='have');
   const checkIssues = state.items.filter(i=>i.type==='check' && checkStatus(i)!=='ok');
   const logIssues = state.items.filter(i=>i.type==='log' && logStatus(i)==='overdue');
 
-  const flaggedCount = stockItems.filter(i=>i.flag).length;
+  const flaggedCount = stockItems.filter(i=>i.status && i.status!=='have').length;
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     <div class="ov-summary">
-      <div class="ov-card out clickable" data-f="out"><div class="n">${out.length}</div><div class="l">${t('out')}</div></div>
-      <div class="ov-card low clickable" data-f="low"><div class="n">${low.length}</div><div class="l">${t('needToOrder')}</div></div>
-      <div class="ov-card full clickable" data-f="full"><div class="n">${full.length}</div><div class="l">${t('stocked')}</div></div>
+      <div class="ov-card out clickable" data-f="need"><div class="n">${need.length}</div><div class="l">${t('needToOrder')}</div></div>
+      <div class="ov-card full clickable" data-f="have"><div class="n">${have.length}</div><div class="l">${t('stocked')}</div></div>
     </div>
     ${flaggedCount>0 ? `<button class="reset-all-btn" id="resetAllBtn">${t('resetAllBtn')}</button>` : ''}
-    ${(out.length+low.length>0) ? `<button class="copy-order-btn" id="copyOrderBtn">${t('copyOrderBtn')}</button>` : ''}
+    ${(need.length>0) ? `<button class="copy-order-btn" id="copyOrderBtn">${t('copyOrderBtn')}</button>` : ''}
     <div class="ov-section-title">${t('needsAttention')}</div>
   `;
   const copyBtn = wrap.querySelector('#copyOrderBtn');
@@ -1319,13 +1358,12 @@ function renderOverview(root){
   wrap.querySelectorAll('.ov-card').forEach(card => {
     card.onclick = () => { activeTab = 'all'; activeFilter = card.dataset.f; renderAll(); };
   });
-  const needsList = [...out, ...low, ...checkIssues, ...logIssues];
+  const needsList = [...need, ...checkIssues, ...logIssues];
   if(!needsList.length){
     const p = document.createElement('div'); p.className='ov-empty'; p.textContent = t('nothingUrgent');
     wrap.appendChild(p);
   } else {
-    out.forEach(i => wrap.appendChild(ovRow(i, 'out', `${t('order')} ${orderNeeded(i)} ${unitLabel(i.unit)}`)));
-    low.forEach(i => wrap.appendChild(ovRow(i, 'low', `${t('order')} ${orderNeeded(i)} ${unitLabel(i.unit)}`)));
+    need.forEach(i => wrap.appendChild(ovRow(i, 'out', `${t('order')} ${orderNeeded(i)} ${unitLabel(i.unit)}`)));
     checkIssues.forEach(i => {
       const days = i.nextDue ? Math.floor((new Date(i.nextDue)-Date.now())/86400000) : null;
       wrap.appendChild(ovRow(i, checkStatus(i)==='overdue'?'out':'low', days===null?t('noDateSet'):(days<0?Math.abs(days)+t('dOverdue'):days+t('dLeft'))));
@@ -1369,7 +1407,7 @@ function renderCategoryTab(root, cats, isAll){
   if(isAll){
     const back = document.createElement('div');
     back.className = 'back-row';
-    const titleMap = {out:t('titleOut'),low:t('titleNeeded'),full:t('titleInStock'),all:t('titleAll')};
+    const titleMap = {need:t('titleNeeded'),have:t('titleInStock'),all:t('titleAll')};
     back.innerHTML = `<button class="back-btn">${t('backToOverview')}</button><div class="all-title">${titleMap[activeFilter] || t('titleAll')}</div>`;
     back.querySelector('.back-btn').onclick = () => { activeTab = 'overview'; activeFilter = 'all'; renderAll(); };
     root.appendChild(back);
@@ -1377,7 +1415,7 @@ function renderCategoryTab(root, cats, isAll){
 
   const filters = document.createElement('div');
   filters.className = 'filters';
-  [['all',t('filterAll')],['out',t('out')],['low',t('needToOrder')],['full',t('stocked')]].forEach(([f,label])=>{
+  [['all',t('filterAll')],['need',t('needToOrder')],['have',t('stocked')]].forEach(([f,label])=>{
     const chip = document.createElement('div');
     chip.className = 'filter-chip' + (activeFilter===f ? ' active':'');
     chip.dataset.f = f;
@@ -1479,7 +1517,7 @@ function fullTime(iso){
   return d.toLocaleDateString(locale(),{month:'short',day:'numeric'}) + ' ' + t('atTime') + ' ' + d.toLocaleTimeString(locale(),{hour:'numeric',minute:'2-digit'});
 }
 function fieldLabel(key){
-  return { working:t('fieldInStock'), back:t('fieldBackStock'), par:t('fieldNeedDay'), inspection:t('fieldInspection'), flag:t('fieldFlag') }[key] || key;
+  return { working:t('fieldInStock'), back:t('fieldBackStock'), par:t('fieldNeedDay'), inspection:t('fieldInspection'), flag:t('fieldFlag'), status:t('fieldFlag'), note:t('fieldNote') }[key] || key;
 }
 function showHistory(item){
   document.getElementById('histTitle').textContent = t('historyTitle', itemLabel(item.name));
@@ -1517,15 +1555,78 @@ document.getElementById('histClose').onclick = closeHistory;
 document.getElementById('histBackdrop').onclick = (e) => { if(e.target.id === 'histBackdrop') closeHistory(); };
 
 let selectedWasteReason = WASTE_REASONS[0];
+let pendingWastePhoto = null; // {base64, mimeType, filename} — set once a photo is picked & compressed
+
+function resetWastePhotoPicker(){
+  pendingWastePhoto = null;
+  document.getElementById('wastePhotoInput').value = '';
+  document.getElementById('wastePhotoPreviewWrap').style.display = 'none';
+  const btn = document.getElementById('wastePhotoBtn');
+  const canUpload = !!syncConfig.url;
+  btn.style.display = canUpload ? '' : 'none';
+  let note = document.getElementById('wastePhotoUnavailableNote');
+  if(!canUpload && !note){
+    note = document.createElement('div');
+    note.id = 'wastePhotoUnavailableNote';
+    note.className = 'waste-photo-note';
+    note.textContent = t('photoNeedsSync');
+    btn.insertAdjacentElement('afterend', note);
+  }
+  if(note) note.style.display = canUpload ? 'none' : '';
+  document.getElementById('wastePhotoPrivacyNote').style.display = canUpload ? '' : 'none';
+}
+
+document.getElementById('wastePhotoBtn').onclick = () => document.getElementById('wastePhotoInput').click();
+document.getElementById('wastePhotoRemoveBtn').onclick = () => resetWastePhotoPicker();
+document.getElementById('wastePhotoInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 1000;
+      let w = img.width, h = img.height;
+      if(w > maxDim || h > maxDim){
+        if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; } else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      pendingWastePhoto = { base64: dataUrl.split(',')[1], mimeType: 'image/jpeg', filename: 'waste-' + Date.now() + '.jpg' };
+      document.getElementById('wastePhotoPreview').src = dataUrl;
+      document.getElementById('wastePhotoPreviewWrap').style.display = 'inline-flex';
+      document.getElementById('wastePhotoBtn').style.display = 'none';
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+async function uploadWastePhoto(photo){
+  if(!syncConfig.url) return null;
+  try{
+    const res = await fetch(syncConfig.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'upload', token: syncConfig.token||'', filename: photo.filename, mimeType: photo.mimeType, base64Data: photo.base64 })
+    });
+    const data = await res.json();
+    return (data && data.url) ? data.url : null;
+  }catch(e){ return null; }
+}
+
 function openWasteModal(item){
   currentWasteItemId = item.id;
   selectedWasteReason = WASTE_REASONS[0];
   document.getElementById('wasteTitle').textContent = t('logWasteTitle', itemLabel(item.name));
   const qtyInput = document.getElementById('wasteQtyInput');
   qtyInput.value = '';
-  qtyInput.max = item.back || 0;
-  qtyInput.placeholder = `${t('upTo')} ${item.back||0} ${unitLabel(item.unit)}`;
+  qtyInput.removeAttribute('max');
+  qtyInput.placeholder = `0 ${unitLabel(item.unit)}`;
   document.getElementById('wasteNoteInput').value = '';
+  resetWastePhotoPicker();
   const reasonsWrap = document.getElementById('wasteReasons');
   reasonsWrap.innerHTML = WASTE_REASONS.map(r => `<button class="waste-reason-chip${r===selectedWasteReason?' active':''}" data-r="${r}">${reasonLabel(r)}</button>`).join('');
   reasonsWrap.querySelectorAll('.waste-reason-chip').forEach(chip => {
@@ -1540,36 +1641,48 @@ function openWasteModal(item){
 function closeWasteModal(){ document.getElementById('wasteBackdrop').classList.remove('show'); currentWasteItemId = null; }
 document.getElementById('wasteClose').onclick = closeWasteModal;
 document.getElementById('wasteBackdrop').onclick = (e) => { if(e.target.id === 'wasteBackdrop') closeWasteModal(); };
-document.getElementById('wasteSubmitBtn').onclick = () => {
+document.getElementById('wasteSubmitBtn').onclick = async () => {
   if(!currentWasteItemId) return;
   const qty = parseFloat(document.getElementById('wasteQtyInput').value);
   if(isNaN(qty) || qty <= 0){ document.getElementById('wasteQtyInput').focus(); return; }
   const note = document.getElementById('wasteNoteInput').value.trim();
-  logWaste(currentWasteItemId, qty, selectedWasteReason, note);
+  const itemId = currentWasteItemId;
+  const reason = selectedWasteReason;
+  const btn = document.getElementById('wasteSubmitBtn');
+  let photoUrl = null;
+  if(pendingWastePhoto){
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = t('uploadingPhoto');
+    photoUrl = await uploadWastePhoto(pendingWastePhoto);
+    btn.textContent = oldText;
+    btn.disabled = false;
+    if(!photoUrl && !confirm(t('photoUploadFailedConfirm'))) return;
+  }
+  logWaste(itemId, qty, reason, note, photoUrl);
   closeWasteModal();
 };
 
-function logWaste(itemId, qty, reason, note){
+function logWaste(itemId, qty, reason, note, photoUrl){
   const item = state.items.find(x=>x.id===itemId); if(!item) return;
-  const fromBack = item.back || 0;
-  const actualQty = Math.min(qty, fromBack);
-  if(actualQty <= 0) return;
-  item.back = Math.max(0, fromBack - actualQty);
+  if(qty <= 0) return;
   if(!state.wasteLog) state.wasteLog = [];
       if(!state.salesLog) state.salesLog = [];
-  const entry = { id: uid(), at: new Date().toISOString(), by: getWho()||"someone", itemId: item.id, itemName: item.name, cat: item.cat, unit: item.unit, qty: actualQty, reason, note };
+  const entry = { id: uid(), at: new Date().toISOString(), by: getWho()||"someone", itemId: item.id, itemName: item.name, cat: item.cat, unit: item.unit, qty, reason, note, photoUrl: photoUrl||null };
   state.wasteLog.push(entry);
   if(state.wasteLog.length > 200) state.wasteLog = state.wasteLog.slice(-200);
   if(!item.history) item.history = [];
-  item.history.push({ at: entry.at, by: entry.by, field: 'waste', from: fromBack, to: item.back, reason, qty: actualQty });
+  item.history.push({ at: entry.at, by: entry.by, field: 'waste', reason, qty });
   if(item.history.length > 50) item.history = item.history.slice(-50);
   touch(item);
   queueSave();
   renderAll();
 }
 
+let wastePhotoOnly = false;
 function renderWasteLog(root){
-  const entries = (state.wasteLog || []).slice().reverse();
+  const allEntries = (state.wasteLog || []).slice().reverse();
+  const entries = wastePhotoOnly ? allEntries.filter(e => e.photoUrl) : allEntries;
   const wrap = document.createElement('div');
   const now = Date.now();
   const weekAgo = now - 7*86400000;
@@ -1586,6 +1699,17 @@ function renderWasteLog(root){
   `;
   wrap.appendChild(summary);
 
+  const filterRow = document.createElement('div');
+  filterRow.className = 'filters';
+  filterRow.innerHTML = `
+    <button class="filter-chip${!wastePhotoOnly?' active':''}" data-wf="all">${t('filterAll')}</button>
+    <button class="filter-chip${wastePhotoOnly?' active':''}" data-wf="photos">${t('photosOnly')}</button>
+  `;
+  filterRow.querySelectorAll('button').forEach(b => {
+    b.onclick = () => { wastePhotoOnly = (b.dataset.wf === 'photos'); renderAll(); };
+  });
+  wrap.appendChild(filterRow);
+
   const title = document.createElement('div');
   title.className = 'ov-section-title';
   title.textContent = t('allWasteEntries');
@@ -1594,19 +1718,24 @@ function renderWasteLog(root){
   if(!entries.length){
     const empty = document.createElement('div');
     empty.className = 'ov-empty';
-    empty.textContent = t('noWasteYet');
+    empty.textContent = wastePhotoOnly ? t('noPhotosYet') : t('noWasteYet');
     wrap.appendChild(empty);
   } else {
     entries.forEach(e => {
       const card = document.createElement('div');
-      card.className = 'log-card';
-      card.innerHTML = `
+      card.className = 'log-card' + (e.photoUrl ? ' with-photo' : '');
+      const body = `
         <div class="log-card-head">
           <div class="log-card-when">${itemLabel(e.itemName)} — ${e.qty} ${unitLabel(e.unit)}</div>
           <div class="log-card-by">${reasonLabel(e.reason)}</div>
         </div>
         <div class="log-card-meta">${fullTime(e.at)} · ${t('loggedBy')} ${e.by}${e.note ? ' · ' + e.note : ''}</div>
       `;
+      card.innerHTML = e.photoUrl
+        ? `<img class="log-card-photo" src="${escAttr(e.photoUrl)}" data-full="${escAttr(e.photoUrl)}" alt=""><div class="log-card-body">${body}</div>`
+        : body;
+      const photoEl = card.querySelector('.log-card-photo');
+      if(photoEl) photoEl.onclick = () => window.open(photoEl.dataset.full, '_blank');
       wrap.appendChild(card);
     });
   }
@@ -1704,16 +1833,17 @@ function computeLeaderboard(period){
   } else {
     startMs = Date.now() - 30*86400000;
   }
+  // With exact quantities gone, "restocked" is approximated by counting
+  // status changes that land on 'full' — each one is a restock event.
   const totals = {};
   state.items.forEach(item => {
     if(item.type !== 'stock' || !item.history) return;
     item.history.forEach(h => {
-      if(h.field === 'back' && typeof h.from === 'number' && typeof h.to === 'number' && h.to < h.from){
+      if(h.field === 'status' && h.to === 'have' && h.from !== 'have'){
         const t = new Date(h.at).getTime();
         if(t >= startMs && t < endMs){
-          const qty = h.from - h.to;
           if(!totals[item.id]) totals[item.id] = { name: item.name, cat: item.cat, unit: item.unit, qty: 0 };
-          totals[item.id].qty += qty;
+          totals[item.id].qty += 1;
         }
       }
     });
@@ -1856,7 +1986,7 @@ function renderSalesLog(root){
             <div class="pop-name">${itemLabel(p.name)}</div>
             <div class="pop-bar-track"><div class="pop-bar-fill" style="width:${Math.max(6, Math.round(p.qty/lbData[0].qty*100))}%"></div></div>
           </div>
-          <div class="pop-qty">${p.qty} ${unitLabel(p.unit)}</div>
+          <div class="pop-qty">${p.qty}×</div>
         </div>
       `).join('')
     }
@@ -2019,6 +2149,9 @@ function applyStaticText(){
   document.getElementById('wasteNoteLabel').textContent = t('noteOptional');
   document.getElementById('wasteNoteInput').placeholder = t('notePlaceholder');
   document.getElementById('wasteSubmitBtn').textContent = t('logWasteBtn');
+  document.getElementById('wastePhotoLabel').textContent = t('photoOptional');
+  document.getElementById('wastePhotoBtnText').textContent = t('addPhoto');
+  document.getElementById('wastePhotoPrivacyNote').textContent = t('photoPrivacyNote');
 }
 document.getElementById('langBtn').onclick = () => {
   lang = lang === 'en' ? 'es' : 'en';
