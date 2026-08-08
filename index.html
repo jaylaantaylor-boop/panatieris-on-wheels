@@ -915,7 +915,7 @@ function saveSyncConfig(cfg){
 
 // Apps Script deployments occasionally hang instead of erroring, which would
 // otherwise stall an unbounded `await fetch` forever. Bound every sync call.
-function fetchWithTimeout(url, opts, ms = 8000){
+function fetchWithTimeout(url, opts, ms = 20000){
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
@@ -1619,7 +1619,7 @@ async function uploadWastePhoto(photo){
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action:'upload', token: syncConfig.token||'', filename: photo.filename, mimeType: photo.mimeType, base64Data: photo.base64 })
-    }, 15000);
+    }, 35000);
     const data = await res.json();
     return (data && data.url) ? data.url : null;
   }catch(e){ return null; }
