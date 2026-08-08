@@ -913,6 +913,14 @@ function saveSyncConfig(cfg){
   try{ localStorage.setItem('sync-config', JSON.stringify(cfg)); }catch(e){}
 }
 
+// Apps Script deployments occasionally hang instead of erroring, which would
+// otherwise stall an unbounded `await fetch` forever. Bound every sync call.
+function fetchWithTimeout(url, opts, ms = 8000){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 // LocalStore keeps its original name (call sites throughout this file use
 // it) but now syncs through a Google Sheet when configured, always writing
 // through to localStorage too so the app still works offline and paints
@@ -922,7 +930,7 @@ const LocalStore = {
     if(syncConfig.url){
       try{
         const u = syncConfig.url + '?key=' + encodeURIComponent(key) + '&token=' + encodeURIComponent(syncConfig.token || '');
-        const res = await fetch(u);
+        const res = await fetchWithTimeout(u);
         const data = await res.json();
         if(data.error) throw new Error(data.error);
         if(data.value !== null && data.value !== undefined){
@@ -938,7 +946,7 @@ const LocalStore = {
     try{ localStorage.setItem(key, value); }catch(e){}
     if(!syncConfig.url) return true;
     try{
-      await fetch(syncConfig.url, {
+      await fetchWithTimeout(syncConfig.url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids a CORS preflight Apps Script can't answer
         body: JSON.stringify({ key, value, token: syncConfig.token || '' })
@@ -1607,11 +1615,11 @@ document.getElementById('wastePhotoInput').addEventListener('change', (e) => {
 async function uploadWastePhoto(photo){
   if(!syncConfig.url) return null;
   try{
-    const res = await fetch(syncConfig.url, {
+    const res = await fetchWithTimeout(syncConfig.url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action:'upload', token: syncConfig.token||'', filename: photo.filename, mimeType: photo.mimeType, base64Data: photo.base64 })
-    });
+    }, 15000);
     const data = await res.json();
     return (data && data.url) ? data.url : null;
   }catch(e){ return null; }
@@ -2194,7 +2202,7 @@ document.getElementById('syncTestBtn').onclick = async () => {
   result.textContent = 'Testing…';
   if(!url){ result.style.color = 'var(--tomato)'; result.textContent = 'Enter a web app URL first.'; return; }
   try{
-    const res = await fetch(url + '?key=__ping&token=' + encodeURIComponent(token));
+    const res = await fetchWithTimeout(url + '?key=__ping&token=' + encodeURIComponent(token));
     const data = await res.json();
     if(data.error === 'unauthorized'){ result.style.color = 'var(--tomato)'; result.textContent = '✕ Wrong token.'; return; }
     if(data.error){ result.style.color = 'var(--tomato)'; result.textContent = '✕ ' + data.error; return; }
