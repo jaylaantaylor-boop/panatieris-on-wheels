@@ -10,7 +10,7 @@
   :root{
     --page:#F7EAD2;
     --app:#FFFCF5;
-    --surface:#F7EEDC;
+    --surface:#F1E3C3;
     --ink:#2A2018;
     --ink-dim:#7C6F5C;
     --ink-faint:#B4A78E;
@@ -182,6 +182,14 @@
     padding:12px; border-radius:12px; border:1px solid var(--border-strong);
     background:var(--surface); color:var(--ink); margin-bottom:14px;
   }
+  .lock-input:-webkit-autofill,
+  .lock-input:-webkit-autofill:hover,
+  .lock-input:-webkit-autofill:focus{
+    -webkit-text-fill-color: var(--ink);
+    -webkit-box-shadow: 0 0 0px 1000px var(--surface) inset;
+    box-shadow: 0 0 0px 1000px var(--surface) inset;
+    transition: background-color 9999s ease-in-out 0s;
+  }
   .lock-btn{
     background:linear-gradient(155deg, var(--basil), #1f3a1f); color:#fff; border:none; border-radius:12px;
     padding:11px 28px; font-size:0.85rem; font-weight:700; cursor:pointer;
@@ -284,6 +292,14 @@
   .waste-qty-input, .waste-note-input{
     width:100%; box-sizing:border-box; padding:11px 12px; border-radius:10px;
     border:1px solid var(--border-strong); background:var(--surface); color:var(--ink); font-size:0.9rem;
+  }
+  .waste-note-input:-webkit-autofill,
+  .waste-note-input:-webkit-autofill:hover,
+  .waste-note-input:-webkit-autofill:focus{
+    -webkit-text-fill-color: var(--ink);
+    -webkit-box-shadow: 0 0 0px 1000px var(--surface) inset;
+    box-shadow: 0 0 0px 1000px var(--surface) inset;
+    transition: background-color 9999s ease-in-out 0s;
   }
   .waste-reasons{ display:flex; flex-wrap:wrap; gap:8px; }
   .waste-reason-chip{
@@ -621,7 +637,7 @@
       <div class="waste-field-label">Apps Script web app URL</div>
       <input class="waste-note-input" id="syncUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
       <div class="waste-field-label">Sync token</div>
-      <input class="waste-note-input" id="syncTokenInput" placeholder="the TOKEN value from Code.gs">
+      <input class="waste-note-input" id="syncTokenInput" type="password" autocomplete="off" placeholder="the TOKEN value from Code.gs">
       <div class="sub" style="margin-top:10px;line-height:1.5;">
         Every device that should share this truck's inventory needs the same URL and token entered here. Without them the app just saves to this device only.
       </div>
@@ -1291,7 +1307,7 @@ function renderOrderLog(root){
         <div class="lock-icon">🔒</div>
         <div class="lock-title">${t('lockOrderTitle')}</div>
         <div class="lock-sub">${t('lockOrderSub')}</div>
-        <input class="lock-input" id="lockInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+        <input class="lock-input" id="lockInput" type="password" autocomplete="off" inputmode="numeric" maxlength="4" placeholder="••••">
         <button class="lock-btn" id="lockBtn">${t('unlock')}</button>
         <div class="lock-error" id="lockError"></div>
       </div>
@@ -1898,7 +1914,7 @@ function renderSalesLog(root){
         <div class="lock-icon">🔒</div>
         <div class="lock-title">${t('lockSalesTitle')}</div>
         <div class="lock-sub">${t('lockSalesSub')}</div>
-        <input class="lock-input" id="salesLockInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••">
+        <input class="lock-input" id="salesLockInput" type="password" autocomplete="off" inputmode="numeric" maxlength="4" placeholder="••••">
         <button class="lock-btn" id="salesLockBtn">${t('unlock')}</button>
         <div class="lock-error" id="salesLockError"></div>
       </div>
