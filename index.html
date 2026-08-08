@@ -206,6 +206,10 @@
     padding:16px; margin-bottom:20px;
   }
   .sales-entry-date{ font-family:'Fraunces',serif; font-weight:600; font-size:1rem; color:var(--ink); margin-bottom:12px; }
+  .sales-date-nav{ display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:4px; }
+  .sales-date-nav .sales-entry-date{ margin-bottom:0; flex:1; text-align:center; }
+  .sales-date-nav .step-btn:disabled{ opacity:0.35; cursor:default; }
+  .sales-jump-today{ display:block; margin:0 auto 12px; }
   .sales-entry-row{ display:flex; gap:10px; margin-bottom:10px; }
   .sales-entry-field{ flex:1; }
   .sales-entry-label{ font-size:0.7rem; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:5px; }
@@ -665,6 +669,7 @@ const I18N = {
     loggedBy:"logged by",
     reasonExpired:"Expired", reasonSpoiled:"Spoiled", reasonDropped:"Dropped/Spilled", reasonPrep:"Prep mistake", reasonOther:"Other",
     today:"Today", cash:"Cash", card:"Card", total:"Total", updateToday:"Update today", saveToday:"Save today",
+    save:"Save", update:"Update",
     lastSavedBy:"last saved by", salesTrend:"Sales trend", daily:"Daily", weekly:"Weekly", monthly:"Monthly",
     notEnoughData:"Not enough data yet — log a few days to see trends.",
     leaderboard:"🏆 Leaderboard", yesterday:"Yesterday", thisWeek:"This week", thisMonth:"This month",
@@ -723,6 +728,7 @@ const I18N = {
     loggedBy:"registrado por",
     reasonExpired:"Caducado", reasonSpoiled:"Echado a perder", reasonDropped:"Caído/Derramado", reasonPrep:"Error de preparación", reasonOther:"Otro",
     today:"Hoy", cash:"Efectivo", card:"Tarjeta", total:"Total", updateToday:"Actualizar hoy", saveToday:"Guardar hoy",
+    save:"Guardar", update:"Actualizar",
     lastSavedBy:"guardado por última vez por", salesTrend:"Tendencia de ventas", daily:"Diario", weekly:"Semanal", monthly:"Mensual",
     notEnoughData:"Todavía no hay suficientes datos — registra algunos días para ver tendencias.",
     leaderboard:"🏆 Tabla de posiciones", yesterday:"Ayer", thisWeek:"Esta semana", thisMonth:"Este mes",
@@ -814,6 +820,7 @@ let orderLogUnlocked = false;
 const SALES_CODE = '0000';
 let salesUnlocked = false;
 let salesMonthOpen = {};
+let salesViewDate = null; // date string shown in the entry card; defaults to today on first render
 let salesChartPeriod = 'day';
 let leaderboardPeriod = 'day';
 const WASTE_REASONS = ['Expired','Spoiled','Dropped/Spilled','Prep mistake','Other'];
@@ -1755,6 +1762,12 @@ function localDateStr(d){
   const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
   return `${y}-${m}-${day}`;
 }
+function addDays(dateStr, delta){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate()+delta);
+  return localDateStr(dt);
+}
 function fmtMoney(n){ return '$' + (Math.round((n||0)*100)/100).toFixed(2); }
 function fmtDateNice(dateStr){
   const [y,m,d] = dateStr.split('-').map(Number);
@@ -1910,26 +1923,40 @@ function renderSalesLog(root){
   wrap.appendChild(head);
 
   const today = localDateStr();
-  const todayEntry = (state.salesLog||[]).find(e => e.date === today);
+  if(!salesViewDate) salesViewDate = today;
+  const viewDate = salesViewDate;
+  const viewEntry = (state.salesLog||[]).find(e => e.date === viewDate);
+  const isToday = viewDate === today;
   const entryForm = document.createElement('div');
   entryForm.className = 'sales-entry-card';
   entryForm.innerHTML = `
-    <div class="sales-entry-date">${fmtDateNice(today)} — ${t('today')}</div>
+    <div class="sales-date-nav">
+      <button class="step-btn" id="salesPrevDay" aria-label="Previous day">‹</button>
+      <div class="sales-entry-date">${fmtDateNice(viewDate)}${isToday ? ' — ' + t('today') : ''}</div>
+      <button class="step-btn" id="salesNextDay" aria-label="Next day" ${isToday ? 'disabled' : ''}>›</button>
+    </div>
+    ${!isToday ? `<button class="mini-btn sales-jump-today" id="salesJumpToday">${t('today')}</button>` : ''}
     <div class="sales-entry-row">
       <div class="sales-entry-field">
         <div class="sales-entry-label">${t('cash')}</div>
-        <input class="sales-entry-input" id="salesCashInput" type="number" min="0" step="0.01" placeholder="0.00" value="${todayEntry ? todayEntry.cash : ''}">
+        <input class="sales-entry-input" id="salesCashInput" type="number" min="0" step="0.01" placeholder="0.00" value="${viewEntry ? viewEntry.cash : ''}">
       </div>
       <div class="sales-entry-field">
         <div class="sales-entry-label">${t('card')}</div>
-        <input class="sales-entry-input" id="salesCardInput" type="number" min="0" step="0.01" placeholder="0.00" value="${todayEntry ? todayEntry.card : ''}">
+        <input class="sales-entry-input" id="salesCardInput" type="number" min="0" step="0.01" placeholder="0.00" value="${viewEntry ? viewEntry.card : ''}">
       </div>
     </div>
-    <div class="sales-entry-total" id="salesEntryTotal">${t('total')}: ${fmtMoney((todayEntry?todayEntry.cash:0)+(todayEntry?todayEntry.card:0))}</div>
-    <button class="sales-save-btn" id="salesSaveBtn">${todayEntry ? t('updateToday') : t('saveToday')}</button>
-    ${todayEntry ? `<div class="sales-entry-meta">${t('lastSavedBy')} ${todayEntry.by} · ${timeAgo(todayEntry.at)}</div>` : ''}
+    <div class="sales-entry-total" id="salesEntryTotal">${t('total')}: ${fmtMoney((viewEntry?viewEntry.cash:0)+(viewEntry?viewEntry.card:0))}</div>
+    <button class="sales-save-btn" id="salesSaveBtn">${viewEntry ? (isToday ? t('updateToday') : t('update')) : (isToday ? t('saveToday') : t('save'))}</button>
+    ${viewEntry ? `<div class="sales-entry-meta">${t('lastSavedBy')} ${viewEntry.by} · ${timeAgo(viewEntry.at)}</div>` : ''}
   `;
   wrap.appendChild(entryForm);
+
+  entryForm.querySelector('#salesPrevDay').onclick = () => { salesViewDate = addDays(viewDate, -1); renderAll(); };
+  const nextDayBtn = entryForm.querySelector('#salesNextDay');
+  if(!isToday) nextDayBtn.onclick = () => { salesViewDate = addDays(viewDate, 1); renderAll(); };
+  const jumpTodayBtn = entryForm.querySelector('#salesJumpToday');
+  if(jumpTodayBtn) jumpTodayBtn.onclick = () => { salesViewDate = today; renderAll(); };
 
   const cashInput = entryForm.querySelector('#salesCashInput');
   const cardInput = entryForm.querySelector('#salesCardInput');
@@ -1941,7 +1968,7 @@ function renderSalesLog(root){
   cashInput.oninput = updateTotal;
   cardInput.oninput = updateTotal;
   entryForm.querySelector('#salesSaveBtn').onclick = () => {
-    upsertSalesEntry(today, parseFloat(cashInput.value), parseFloat(cardInput.value));
+    upsertSalesEntry(viewDate, parseFloat(cashInput.value), parseFloat(cardInput.value));
     renderAll();
   };
 
