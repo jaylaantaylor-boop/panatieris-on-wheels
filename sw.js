@@ -8,7 +8,7 @@
    Bump the version suffix whenever you upload a new index.html so old copies
    get thrown away rather than lingering on someone's phone. */
 const CACHE_PREFIX = 'mamma-mia-';
-const CACHE_NAME = CACHE_PREFIX + 'v5';
+const CACHE_NAME = CACHE_PREFIX + 'v6';
 const APP_SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 /* The cache this app was writing under until Aug 2026 — 'panatieris-shell-v1',

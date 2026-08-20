@@ -1,7 +1,7 @@
 {
-  "name": "Panatieri's on Wheels — Truck Stock",
-  "short_name": "On Wheels",
-  "description": "Inventory, waste, and sales tracking for Panatieri's on Wheels food truck",
+  "name": "Mamma Mia Truck — Stock",
+  "short_name": "Mamma Mia",
+  "description": "Inventory, waste, and sales tracking for the Mamma Mia food truck",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

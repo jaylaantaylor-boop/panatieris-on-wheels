@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Panatieri's on Wheels</title>
+<title>Mamma Mia Truck</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="theme-color" content="#2B4A2A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="On Wheels">
+<meta name="apple-mobile-web-app-title" content="Mamma Mia">
 <style>
   /* Fonts are system-only on purpose: the truck often has bad signal, and a
      web font that fails to load would leave staff staring at a blank screen. */
@@ -342,7 +342,7 @@
   <header>
     <img class="mark" src="icon-192.png" alt="">
     <div class="brand">
-      <h1>Panatieri's on Wheels</h1>
+      <h1>Mamma Mia Truck</h1>
       <div class="sub" id="brandSub">Truck Stock</div>
     </div>
     <button class="icon-btn" id="refreshBtn" title="Refresh">⟳</button>
@@ -388,9 +388,12 @@
 <script>
 'use strict';
 /* ============================================================================
-   Panatieri's on Wheels — inventory, waste and sales for the food truck.
-   Renamed from "Mamma Mia Truck" Aug 2026. The localStorage keys below still
-   say mm-truck / mama-mia on purpose: that is where every phone's data already
+   Mamma Mia Truck — inventory, waste and sales for the food truck.
+   Briefly called "Panatieri's on Wheels" in Aug 2026, then renamed back: Mamma
+   Mia is the truck's own name. The address still says /panatieris-on-wheels/
+   and the localStorage keys below still say mm-truck / mama-mia. Both are
+   deliberate — the address is what every printed QR code points at, and the
+   keys are where every phone's data already
    lives, and changing them would orphan it.
 
    Design notes for whoever picks this up next:
@@ -1444,7 +1447,7 @@ function jumpTo(item){
 function buildOrderText(){
   const need = doc.items.filter(i => i.type === 'stock' && i.status === 'need');
   const now = new Date();
-  let msg = "Panatieri's on Wheels\n" +
+  let msg = "Mamma Mia Truck\n" +
     now.toLocaleDateString(locale(),{weekday:'long', month:'long', day:'numeric', year:'numeric'}) +
     '\n\n' + t('orderHeader') + '\n';
   ALL_CATS.forEach(cat => {
@@ -2308,7 +2311,7 @@ function exportCsv(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'panatieris-on-wheels-sales-' + todayStr() + '.csv';
+  a.download = 'mamma-mia-truck-sales-' + todayStr() + '.csv';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
