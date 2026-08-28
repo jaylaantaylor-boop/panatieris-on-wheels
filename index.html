@@ -479,7 +479,11 @@ const I18N = {
     syncHelp:"Every phone that shares this truck needs the same URL and token. Without them the app only saves to this phone.",
     testConn:"Test connection", testing:"Testing…", connected:"Connected", badToken:"Wrong token.",
     cantReach:"Couldn't reach that URL.", enterUrl:"Enter a URL first.",
-    changePin:"Money PIN", pinHelp:"4 digits. This keeps the sales screen away from casual glances — it is not real security, since anyone can read the data on an unlocked phone.",
+    changePin:"Money PIN", pinHelp:"4 digits, stored scrambled and never shown. Changing it needs the current one. It keeps the sales screen out of casual reach — it cannot hide the numbers from someone who has this app and the setup code.",
+    pinCurrent:"Current PIN", pinNew:"New PIN — leave blank to remove", pinNewFirst:"Choose 4 digits",
+    pinIsSet:"A PIN is set. Enter it to change or remove it.",
+    pinNotSet:"No PIN yet — the sales screen is open to anyone with this app.",
+    pinLocked:(n)=>`Too many tries. Wait ${n}s.`,
     footer:"Tap “Need it” on anything running low. The manager copies the order list from the Today screen.",
     orderHeader:"ORDER", nothingNeeded:"Nothing needed — fully stocked!", thanks:"Thank you!",
     at:"at", loadFailed:"Couldn't read saved data. A backup was kept — nothing was deleted.",
@@ -552,7 +556,11 @@ const I18N = {
     syncHelp:"Todos los teléfonos que comparten este camión necesitan la misma URL y el mismo token. Sin ellos la app solo guarda en este teléfono.",
     testConn:"Probar la conexión", testing:"Probando…", connected:"Conectado", badToken:"Token incorrecto.",
     cantReach:"No se pudo conectar a esa URL.", enterUrl:"Primero escribe una URL.",
-    changePin:"PIN del dinero", pinHelp:"4 dígitos. Esto mantiene la pantalla de ventas fuera de miradas casuales — no es seguridad real, ya que cualquiera puede leer los datos en un teléfono desbloqueado.",
+    changePin:"PIN del dinero", pinHelp:"4 dígitos, guardados cifrados y nunca mostrados. Cambiarlo requiere el actual. Mantiene la pantalla de ventas fuera del alcance casual — no puede ocultar los números a quien tenga esta app y el código.",
+    pinCurrent:"PIN actual", pinNew:"PIN nuevo — déjalo vacío para quitarlo", pinNewFirst:"Elige 4 dígitos",
+    pinIsSet:"Hay un PIN. Escríbelo para cambiarlo o quitarlo.",
+    pinNotSet:"Sin PIN — la pantalla de ventas está abierta para cualquiera con esta app.",
+    pinLocked:(n)=>`Demasiados intentos. Espera ${n}s.`,
     footer:"Toca “Lo necesito” en lo que se esté acabando. El encargado copia el pedido desde la pantalla de Hoy.",
     orderHeader:"PEDIDO", nothingNeeded:"No se necesita nada — todo abastecido!", thanks:"¡Gracias!",
     at:"a las", loadFailed:"No se pudieron leer los datos guardados. Se conservó una copia — no se borró nada.",
@@ -2035,8 +2043,7 @@ async function uploadPhoto(photo){
 
 /* ---------- Money ---------- */
 function renderMoney(root){
-  const pin = (doc.settings && doc.settings.pin) || '';
-  if(!moneyUnlocked){ renderLock(root, pin); return; }
+  if(!moneyUnlocked){ renderLock(root); return; }
 
   const lockBtn = document.createElement('button');
   lockBtn.className = 'btn btn-ghost btn-sm';
@@ -2208,8 +2215,138 @@ function renderMoney(root){
     });
   }
 }
-function renderLock(root, pin){
-  const setting = !pin;
+/* ------------------------------------------------------------ money PIN ---
+   The PIN is stored as a salted digest, hashed over and over, and never kept
+   or shown as digits. Changing or clearing it needs the current PIN, and
+   wrong guesses get slower.
+
+   Be clear about what this is worth. It stops someone who picks up an
+   unlocked phone from reading the PIN out of Settings, changing it, or
+   walking into the sales screen. It does NOT hide the sales figures from
+   someone who has this app and the truck's setup code — the numbers sit in
+   the same document the app syncs. Keeping people out of the numbers means
+   not giving them the app. */
+
+/* SHA-256 written out longhand rather than using crypto.subtle, for two
+   reasons: it works when the app is opened over plain http, and it stays
+   synchronous, so checking a PIN doesn't turn every caller into a promise. */
+const SHA_K = [
+  0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+];
+function sha256hex(str){
+  const rotr = (x,n) => (x>>>n) | (x<<(32-n));
+  const b = [];
+  for(let i=0;i<str.length;i++){
+    let c = str.charCodeAt(i);
+    if(c < 0x80) b.push(c);
+    else if(c < 0x800) b.push(0xc0|(c>>6), 0x80|(c&63));
+    else if(c < 0xd800 || c >= 0xe000) b.push(0xe0|(c>>12), 0x80|((c>>6)&63), 0x80|(c&63));
+    else { i++; const cp = 0x10000 + (((c&0x3ff)<<10) | (str.charCodeAt(i)&0x3ff));
+           b.push(0xf0|(cp>>18), 0x80|((cp>>12)&63), 0x80|((cp>>6)&63), 0x80|(cp&63)); }
+  }
+  const bits = b.length * 8;
+  b.push(0x80);
+  while(b.length % 64 !== 56) b.push(0);
+  b.push(0,0,0,0,(bits>>>24)&255,(bits>>>16)&255,(bits>>>8)&255,bits&255);
+  let h = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const w = new Array(64);
+  for(let i=0;i<b.length;i+=64){
+    for(let j=0;j<16;j++) w[j] = (b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3];
+    for(let j=16;j<64;j++){
+      const s0 = rotr(w[j-15],7)^rotr(w[j-15],18)^(w[j-15]>>>3);
+      const s1 = rotr(w[j-2],17)^rotr(w[j-2],19)^(w[j-2]>>>10);
+      w[j] = (w[j-16]+s0+w[j-7]+s1)|0;
+    }
+    let a=h[0],bb=h[1],c=h[2],d=h[3],e=h[4],f=h[5],g=h[6],hh=h[7];
+    for(let j=0;j<64;j++){
+      const S1 = rotr(e,6)^rotr(e,11)^rotr(e,25);
+      const ch = (e&f)^(~e&g);
+      const t1 = (hh+S1+ch+SHA_K[j]+w[j])|0;
+      const S0 = rotr(a,2)^rotr(a,13)^rotr(a,22);
+      const maj = (a&bb)^(a&c)^(bb&c);
+      const t2 = (S0+maj)|0;
+      hh=g; g=f; f=e; e=(d+t1)|0; d=c; c=bb; bb=a; a=(t1+t2)|0;
+    }
+    h = [(h[0]+a)|0,(h[1]+bb)|0,(h[2]+c)|0,(h[3]+d)|0,(h[4]+e)|0,(h[5]+f)|0,(h[6]+g)|0,(h[7]+hh)|0];
+  }
+  return h.map(x => (x>>>0).toString(16).padStart(8,'0')).join('');
+}
+
+/* Rehashing many times is what makes guessing expensive. Four digits is only
+   10,000 possibilities — hashed once, a laptop tries them all instantly. */
+const PIN_ROUNDS = 20000;
+function pinDigest(salt, pin){
+  let v = salt + ':' + pin;
+  for(let i=0;i<PIN_ROUNDS;i++) v = sha256hex(v);
+  return v;
+}
+function pinNewSalt(){
+  const a = new Uint8Array(16);
+  if(window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
+  else for(let i=0;i<16;i++) a[i] = Math.floor(Math.random()*256);
+  return Array.from(a).map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function pinIsSet(){
+  const s = doc.settings || {};
+  return !!(s.pinHash || s.pin);
+}
+function pinVerify(entered){
+  const s = doc.settings || {};
+  if(s.pinHash && s.pinSalt) return pinDigest(s.pinSalt, entered) === s.pinHash;
+  if(s.pin) return entered === s.pin;      // set before this version
+  return false;
+}
+function pinStore(newPin){
+  const salt = pinNewSalt();
+  doc.settings = Object.assign({}, doc.settings, {
+    // NOT blank. A phone still running the previous version reads this field,
+    // and would read blank as "no PIN set" and hand over the sales screen.
+    // Parking a value nobody knows makes an un-updated phone fail closed until
+    // it picks the new code up, which happens on its next load with signal.
+    // Anything running this version ignores it — pinHash wins below.
+    pin: String(Math.floor(Math.random() * 9000) + 1000),
+    pinSalt: salt,
+    pinHash: pinDigest(salt, newPin),
+    at: nowISO()
+  });
+}
+function pinRemove(){
+  // Blank here is correct and deliberate: there really is no PIN now, so an
+  // older phone reading blank and opening the screen is the right answer.
+  doc.settings = Object.assign({}, doc.settings,
+    { pin:'', pinSalt:'', pinHash:'', at:nowISO() });
+}
+/* A PIN set by the old version is upgraded the first time it is typed
+   correctly, so nobody has to re-enter anything. */
+function pinUpgradeLegacy(entered){
+  const s = doc.settings || {};
+  if(s.pin && !s.pinHash){ pinStore(entered); queueSave(); }
+}
+
+/* Slow down guessing. Per phone, not shared — someone with a second phone is
+   already past this, which is the point about what a PIN can and can't do. */
+function pinLockLeft(){
+  return Math.max(0, (prefs.pinLockUntil || 0) - Date.now());
+}
+function pinNoteFail(){
+  prefs.pinFails = (prefs.pinFails || 0) + 1;
+  if(prefs.pinFails >= 5){
+    prefs.pinLockUntil = Date.now() + Math.min(900000, 15000 * Math.pow(2, prefs.pinFails - 5));
+  }
+  savePrefs();
+}
+function pinNoteOk(){ prefs.pinFails = 0; prefs.pinLockUntil = 0; savePrefs(); }
+
+function renderLock(root){
+  const setting = !pinIsSet();
   const wrap = document.createElement('div');
   wrap.className = 'lock';
   wrap.innerHTML =
@@ -2225,13 +2362,23 @@ function renderLock(root, pin){
     const v = input.value.trim();
     if(setting){
       if(!/^\d{4}$/.test(v)){ $('pinErr').textContent = t('pinTooShort'); return; }
-      doc.settings = Object.assign({}, doc.settings, { pin:v, at:nowISO() });
+      pinStore(v);
       moneyUnlocked = true;
       queueSave(); render();
       return;
     }
-    if(v === pin){ moneyUnlocked = true; render(); }
-    else { $('pinErr').textContent = t('wrongPin'); input.value = ''; input.focus(); }
+    const wait = pinLockLeft();
+    if(wait > 0){ $('pinErr').textContent = t('pinLocked', Math.ceil(wait/1000)); return; }
+    if(pinVerify(v)){
+      pinUpgradeLegacy(v);          // quietly move an old plain PIN across
+      pinNoteOk();
+      moneyUnlocked = true;
+      render();
+    }else{
+      pinNoteFail();
+      $('pinErr').textContent = t('wrongPin');
+      input.value = ''; input.focus();
+    }
   };
   $('pinGo').onclick = go;
   input.onkeydown = e => { if(e.key === 'Enter') go(); };
@@ -2329,11 +2476,12 @@ function openSettings(){
        <div class="field-hint">${esc(t('syncHelp'))}</div>
        <div class="field-hint" id="sTest" style="font-weight:800;margin-top:10px;"></div>
        <div class="field-label">${esc(t('changePin'))}</div>
-       <input class="field" id="sPin" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+       <div class="field-hint" style="margin-bottom:8px;">${esc(pinIsSet() ? t('pinIsSet') : t('pinNotSet'))}</div>
+       ${pinIsSet() ? `<input class="field" id="sPinCur" type="password" inputmode="numeric" maxlength="4" placeholder="${esc(t('pinCurrent'))}" autocomplete="off" style="margin-bottom:8px;">` : ''}
+       <input class="field" id="sPinNew" type="password" inputmode="numeric" maxlength="4" placeholder="${esc(pinIsSet() ? t('pinNew') : t('pinNewFirst'))}" autocomplete="off">
        <div class="field-hint">${esc(t('pinHelp'))}</div>`;
     $('sUrl').value = prefs.syncUrl || '';
     $('sTok').value = prefs.syncToken || '';
-    $('sPin').value = (doc.settings && doc.settings.pin) || '';
 
     const test = document.createElement('button');
     test.className = 'btn btn-ghost';
@@ -2365,11 +2513,19 @@ function openSettings(){
       prefs.syncUrl   = $('sUrl').value.trim();
       prefs.syncToken = $('sTok').value.trim();
       savePrefs();
-      const p = $('sPin').value.trim();
-      const current = (doc.settings && doc.settings.pin) || '';
-      if(p !== current){
-        if(p && !/^\d{4}$/.test(p)){ flash(t('pinTooShort'), true); return; }
-        doc.settings = Object.assign({}, doc.settings, { pin:p, at:nowISO() });
+      // Changing or clearing the PIN needs the current one. Leaving both
+      // boxes empty leaves the PIN alone, so saving a sync URL doesn't touch it.
+      const nw  = $('sPinNew') ? $('sPinNew').value.trim() : '';
+      const cur = $('sPinCur') ? $('sPinCur').value.trim() : '';
+      if(nw || cur){
+        if(pinIsSet()){
+          const wait = pinLockLeft();
+          if(wait > 0){ flash(t('pinLocked', Math.ceil(wait/1000)), true); return; }
+          if(!pinVerify(cur)){ pinNoteFail(); flash(t('wrongPin'), true); return; }
+          pinNoteOk();
+        }
+        if(nw && !/^\d{4}$/.test(nw)){ flash(t('pinTooShort'), true); return; }
+        if(nw) pinStore(nw); else pinRemove();
         moneyUnlocked = false;
       }
       queueSave();
