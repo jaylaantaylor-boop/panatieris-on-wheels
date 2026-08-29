@@ -332,6 +332,29 @@
   }
   .toast.show{opacity:1;}
 
+  /* Staff / manager chip, next to the business name. Small on purpose: staff
+     should notice it once and then forget it. */
+  .lockchip{
+    display:inline-block;background:var(--surface);border:1px solid var(--border-strong);
+    border-radius:20px;padding:1px 7px;font-size:.6rem;font-weight:800;
+    color:var(--ink-dim);letter-spacing:.2px;vertical-align:1px;
+  }
+  .lockchip.open{background:var(--good-soft);border-color:var(--good);color:var(--good);}
+  /* A locked field reads as a fact rather than a dead input. */
+  .readonly{
+    padding:12px;border-radius:10px;background:var(--surface);border:1px solid var(--border);
+    font-size:.94rem;color:var(--ink-dim);
+  }
+  .mgr-strip{
+    display:flex;align-items:center;gap:9px;background:var(--amber-soft);
+    border:1px solid #EBD9A8;border-radius:11px;padding:11px 12px;margin-top:16px;
+  }
+  .mgr-strip .txt{flex:1;font-size:.76rem;color:#7A5A12;line-height:1.4;}
+  .mgr-strip button{
+    flex-shrink:0;background:var(--amber);color:#fff;border:none;border-radius:9px;
+    padding:8px 12px;font-size:.74rem;font-weight:800;cursor:pointer;font-family:inherit;
+  }
+
   footer{font-size:.71rem;color:var(--ink-faint);text-align:center;line-height:1.6;
     padding:20px 6px 4px;}
 </style>
@@ -343,7 +366,7 @@
     <img class="mark" src="icon-192.png" alt="">
     <div class="brand">
       <h1>Mamma Mia Truck</h1>
-      <div class="sub" id="brandSub">Truck Stock</div>
+      <div class="sub"><span id="brandSub">Truck Stock</span> <span class="lockchip" id="lockChip"></span></div>
     </div>
     <button class="icon-btn" id="refreshBtn" title="Refresh">⟳</button>
     <button class="icon-btn lang" id="langBtn" title="Language">ES</button>
@@ -479,6 +502,10 @@ const I18N = {
     syncHelp:"Every phone that shares this truck needs the same URL and token. Without them the app only saves to this phone.",
     testConn:"Test connection", testing:"Testing…", connected:"Connected", badToken:"Wrong token.",
     cantReach:"Couldn't reach that URL.", enterUrl:"Enter a URL first.",
+    managerOnly:"Manager only", managerPin:"Manager PIN",
+    managerPinSub:"Same code as the Money screen. Ask your manager.",
+    chipStaff:"STAFF", chipManager:"MANAGER",
+    mgrFieldsNote:"Name, quantity and removing this item are manager jobs.",
     changePin:"Money PIN", pinHelp:"4 digits, stored scrambled and never shown. Changing it needs the current one. It keeps the sales screen out of casual reach — it cannot hide the numbers from someone who has this app and the setup code.",
     pinCurrent:"Current PIN", pinNew:"New PIN — leave blank to remove", pinNewFirst:"Choose 4 digits",
     pinIsSet:"A PIN is set. Enter it to change or remove it.",
@@ -556,6 +583,10 @@ const I18N = {
     syncHelp:"Todos los teléfonos que comparten este camión necesitan la misma URL y el mismo token. Sin ellos la app solo guarda en este teléfono.",
     testConn:"Probar la conexión", testing:"Probando…", connected:"Conectado", badToken:"Token incorrecto.",
     cantReach:"No se pudo conectar a esa URL.", enterUrl:"Primero escribe una URL.",
+    managerOnly:"Solo el encargado", managerPin:"PIN del encargado",
+    managerPinSub:"El mismo código que la pantalla de Dinero. Pregunta a tu encargado.",
+    chipStaff:"PERSONAL", chipManager:"ENCARGADO",
+    mgrFieldsNote:"El nombre, la cantidad y eliminar este artículo son tareas del encargado.",
     changePin:"PIN del dinero", pinHelp:"4 dígitos, guardados cifrados y nunca mostrados. Cambiarlo requiere el actual. Mantiene la pantalla de ventas fuera del alcance casual — no puede ocultar los números a quien tenga esta app y el código.",
     pinCurrent:"PIN actual", pinNew:"PIN nuevo — déjalo vacío para quitarlo", pinNewFirst:"Elige 4 dígitos",
     pinIsSet:"Hay un PIN. Escríbelo para cambiarlo o quitarlo.",
@@ -1130,6 +1161,7 @@ function setStatusFlag(id, status){
   } else render();
 }
 function newDay(){
+  if(!isManager()) return;
   const n = doc.items.filter(i => i.type === 'stock' && i.status === 'need').length;
   if(!n) return;
   confirmDialog(t('newDayConfirm')).then(yes => {
@@ -1315,6 +1347,12 @@ document.addEventListener('touchend', () => setTimeout(flushPendingRender, 60));
 let resetScroll = false;
 function render(){
   if(!loaded) return;
+  const chip = $('lockChip');
+  if(chip){
+    const open = isManager();
+    chip.textContent = pinIsSet() ? (open ? t('chipManager') : t('chipStaff')) : '';
+    chip.className = 'lockchip' + (open ? ' open' : '');
+  }
   // A background sync landing mid-scroll must not yank the page around.
   const y = window.scrollY;
   renderNav();
@@ -1388,7 +1426,7 @@ function renderToday(root){
     b1.onclick = () => sendOrder(b1);
     root.appendChild(b1);
   }
-  if(need.length){
+  if(need.length && isManager()){
     const b2 = document.createElement('button');
     b2.className = 'btn btn-ghost';
     b2.innerHTML = '🔄 ' + esc(t('newDay'));
@@ -1595,7 +1633,7 @@ function renderStockList(){
   }
 
   // "+ Add item" lands in whichever group you're looking at
-  if(stockGroup !== 'all' && !q && !stockNeedOnly){
+  if(stockGroup !== 'all' && !q && !stockNeedOnly && isManager()){
     const g = GROUPS.find(x => x.id === stockGroup);
     const b = document.createElement('button');
     b.className = 'btn btn-ghost';
@@ -1690,21 +1728,37 @@ function openItemSheet(id){
   const i = findItem(id);
   if(!i) return;
   openSheet(itemName(i.name), body => {
+    /* Staff see the same sheet, with name / unit / quantity as plain text and
+       no Remove. The note stays editable for everyone — "ran through alot
+       today" is exactly what you want a cook to write down — and so does the
+       history, which is harmless to read and settles arguments. */
+    const mgr = isManager();
     body.innerHTML =
-      `<div class="field-label">${esc(t('itemName'))}</div>
-       <input class="field" id="fName" value="${esc(i.name)}" maxlength="60">
-       <div class="field-label">${esc(t('unit'))}</div>
-       <input class="field" id="fUnit" value="${esc(i.unit)}" maxlength="20">
-       <div class="field-label">${esc(t('orderQty'))}</div>
-       <input class="field" id="fPar" type="number" inputmode="decimal" min="0" value="${esc(String(i.par))}">
-       <div class="field-hint">${esc(t('orderQtyHint'))}</div>
-       <div class="field-label">${esc(t('note'))}</div>
-       <input class="field" id="fNote" value="${esc(i.note || '')}" maxlength="140" placeholder="${esc(t('notePlaceholder'))}">
-       <div class="sheet-actions">
+      `<div class="field-label">${esc(t('itemName'))}</div>` +
+      (mgr ? `<input class="field" id="fName" value="${esc(i.name)}" maxlength="60">`
+           : `<div class="readonly">${esc(itemName(i.name))}</div>`) +
+      `<div class="field-label">${esc(t('unit'))}</div>` +
+      (mgr ? `<input class="field" id="fUnit" value="${esc(i.unit)}" maxlength="20">`
+           : `<div class="readonly">${esc(unitName(i.unit))}</div>`) +
+      `<div class="field-label">${esc(t('orderQty'))}</div>` +
+      (mgr ? `<input class="field" id="fPar" type="number" inputmode="decimal" min="0" value="${esc(String(i.par))}">
+              <div class="field-hint">${esc(t('orderQtyHint'))}</div>`
+           : `<div class="readonly">${esc(String(i.par))} ${esc(unitName(i.unit))}</div>`) +
+      `<div class="field-label">${esc(t('note'))}</div>
+       <input class="field" id="fNote" value="${esc(i.note || '')}" maxlength="140" placeholder="${esc(t('notePlaceholder'))}">` +
+      (mgr ? '' :
+       `<div class="mgr-strip"><span>\u{1F512}</span>
+          <span class="txt">${esc(t('mgrFieldsNote'))}</span>
+          <button type="button" id="mUnlock">${esc(t('unlock'))}</button>
+        </div>`) +
+      `<div class="sheet-actions">
          <button class="btn btn-ghost btn-sm" id="bWaste">🗑 ${esc(t('logWaste'))}</button>
-         <button class="btn btn-ghost btn-sm" id="bHist">🕘 ${esc(t('history'))}</button>
-         <button class="btn btn-ghost btn-sm" id="bDel" style="color:var(--tomato);">${esc(t('removeItem'))}</button>
-       </div>`;
+         <button class="btn btn-ghost btn-sm" id="bHist">🕘 ${esc(t('history'))}</button>` +
+         (mgr ? `<button class="btn btn-ghost btn-sm" id="bDel" style="color:var(--tomato);">${esc(t('removeItem'))}</button>` : '') +
+      `</div>`;
+    if(!mgr){
+      $('mUnlock').onclick = function(){ requireManager(function(){ openItemSheet(id); }); };
+    }
     const save = document.createElement('button');
     save.className = 'btn btn-primary';
     save.style.marginTop = '18px';
@@ -1719,11 +1773,14 @@ function openItemSheet(id){
     save.onclick = () => {
       const it = findItem(id);
       if(!it){ closeSheet(); render(); flash(t('itemGone'), true); return; }
+      // Fields a staff member cannot see are not on the page at all, so
+      // fall back to what the item already says rather than reading null.
+      const fld = (elId, fallback) => { const e = $(elId); return e ? e.value : fallback; };
       const typed = {
-        name: $('fName').value.trim() || opened.name,
-        unit: $('fUnit').value.trim() || opened.unit,
-        par:  Math.max(0, Math.min(999999, num($('fPar').value, opened.par))),
-        note: $('fNote').value.trim(),
+        name: String(fld('fName', opened.name)).trim() || opened.name,
+        unit: String(fld('fUnit', opened.unit)).trim() || opened.unit,
+        par:  Math.max(0, Math.min(999999, num(fld('fPar', opened.par), opened.par))),
+        note: String(fld('fNote', opened.note)).trim(),
       };
       const labels = { name:'name', unit:'unit', par:'par', note:'note' };
       let changed = false;
@@ -1743,7 +1800,7 @@ function openItemSheet(id){
 
     $('bWaste').onclick = () => { closeSheet(); openWasteSheet(id); };
     $('bHist').onclick  = () => { closeSheet(); openHistorySheet(id); };
-    $('bDel').onclick   = () => {
+    if($('bDel')) $('bDel').onclick   = () => {
       confirmDialog(t('removeConfirm', itemName(i.name))).then(yes => {
         if(!yes) return;
         closeSheet();
@@ -2345,6 +2402,77 @@ function pinNoteFail(){
 }
 function pinNoteOk(){ prefs.pinFails = 0; prefs.pinLockUntil = 0; savePrefs(); }
 
+/* ------------------------------------------------------------ staff mode ---
+   The app opens locked. Everything a shift needs works with no code; the
+   things that change what this business IS ask for the manager PIN — the same
+   one the Money screen uses, so there is only ever one code to remember.
+
+   Same ceiling as that PIN, and worth being plain about: anyone holding this
+   app and the sync code can still reach the data. This is not a wall. What it
+   stops is the thing that actually happens — a tap on "Start a new day" at
+   close, or an item renamed until it stops matching its own history.
+
+   With no PIN set there is nothing to check against, so the app stays fully
+   open rather than locking a business out of its own list. */
+function isManager(){
+  if(!pinIsSet()) return true;
+  return moneyUnlocked;
+}
+let mgrIdleTimer = null;
+function touchManager(){
+  clearTimeout(mgrIdleTimer);
+  if(!moneyUnlocked) return;
+  mgrIdleTimer = setTimeout(function(){ moneyUnlocked = false; render(); }, 300000);
+}
+function lockManager(){ moneyUnlocked = false; clearTimeout(mgrIdleTimer); render(); }
+/* A phone put down, locked, or handed back must not stay unlocked. */
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden){ moneyUnlocked = false; clearTimeout(mgrIdleTimer); }
+});
+['click','touchend','keydown'].forEach(function(e){
+  document.addEventListener(e, touchManager, true);
+});
+
+/* Ask for the PIN, then run `then` if it was right. Called from wherever a
+   locked action was attempted, so the thing they asked for still happens once
+   they are through — no starting over. */
+function requireManager(then){
+  if(isManager()){ then(); return; }
+  openSheet(t('managerOnly'), function(body){
+    body.innerHTML =
+      '<div class="lock" style="padding:16px 10px 4px;">' +
+        '<div class="ic">\u{1F512}</div>' +
+        '<div class="t">' + esc(t('managerPin')) + '</div>' +
+        '<div class="s">' + esc(t('managerPinSub')) + '</div>' +
+        '<input class="pin-input" id="mPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••">' +
+        '<button class="btn btn-primary" id="mGo" style="width:auto;padding:13px 32px;">' + esc(t('unlock')) + '</button>' +
+        '<div class="pin-err" id="mErr"></div>' +
+      '</div>';
+    const go = function(){
+      const v = $('mPin').value.trim();
+      const wait = pinLockLeft();
+      if(wait > 0){ $('mErr').textContent = t('pinLocked', Math.ceil(wait/1000)); return; }
+      if(pinVerify(v)){
+        pinUpgradeLegacy(v);
+        pinNoteOk();
+        moneyUnlocked = true;
+        touchManager();
+        closeSheet();
+        render();
+        then();
+      }else{
+        pinNoteFail();
+        $('mErr').textContent = t('wrongPin');
+        $('mPin').value = '';
+        $('mPin').focus();
+      }
+    };
+    $('mGo').onclick = go;
+    $('mPin').onkeydown = function(e){ if(e.key === 'Enter') go(); };
+    setTimeout(function(){ const el = $('mPin'); if(el) el.focus(); }, 60);
+  });
+}
+
 function renderLock(root){
   const setting = !pinIsSet();
   const wrap = document.createElement('div');
@@ -2552,7 +2680,7 @@ $('refreshBtn').onclick = () => {
   if(!prefs.syncUrl){ flash(t('notConnected'), true); openSettings(); return; }
   refresh(true);
 };
-$('settingsBtn').onclick = openSettings;
+$('settingsBtn').onclick = function(){ requireManager(openSettings); };
 $('langBtn').onclick = () => {
   lang = lang === 'en' ? 'es' : 'en';
   prefs.lang = lang;
